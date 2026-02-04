@@ -52,10 +52,10 @@ In high-threat environments, human analysts are overwhelmed by the volume of ope
 
 ```bash
 # Clone the repository
-git clone [https://github.com/YourUsername/sentinel.git](https://github.com/YourUsername/sentinel.git)
+git clone https://github.com/rayazulseven-max/sentinel-osint.git
 
 # Navigate to directory
-cd sentinel
+cd sentinel-osint
 
 # Install dependencies
 pip install -r requirements.txt
