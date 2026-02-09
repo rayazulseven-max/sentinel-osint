@@ -1,73 +1,136 @@
 import time
 import json
-import random
+import feedparser  # THE UPGRADE: Real RSS scraping
 from datetime import datetime
 
 # CONFIGURATION
-TARGET_KEYWORDS = ["civil unrest", "federal deployment", "infrastructure failure", "cyberattack"]
-LOCATIONS = ["San Antonio", "Minneapolis", "Washington DC"]
-SIMULATION_MODE = True  # Set to False if connecting to real APIs
+# ---------------------------------------------------------
+TARGET_KEYWORDS = [
+    "civil unrest",
+    "power outage",
+    "cyberattack",
+    "protest",
+    "police activity",
+    "emergency"
+]
+
+LOCATIONS = ["San Antonio", "Austin", "Dallas"]
+
+# ANSI COLORS (Keeping the 'Cool Factor')
+CYAN = "\033[96m"
+GREEN = "\033[92m"
+YELLOW = "\033[93m"
+RED = "\033[91m"
+RESET = "\033[0m"
 
 class SentinelAgent:
     def __init__(self, target_city):
         self.target_city = target_city
         self.intel_ledger = []
-        print(f"[\033[92mSENTINEL\033[0m] Initializing Agent for Target: {self.target_city.upper()}...")
-        time.sleep(1.2)
+        print(f"{GREEN}[SENTINEL]{RESET} Initializing Agent for Target: {CYAN}{self.target_city}{RESET}...")
+        time.sleep(1) # Brief pause for effect is fine
 
     def scrape_sources(self):
-        """Simulates high-speed scraping of RSS and News feeds."""
-        print(f"[\033[93mCOLLECT\033[0m] Scanning 142 sources for keywords: {TARGET_KEYWORDS}")
+        """
+        Scrapes REAL Google News RSS feeds for the target city + keywords.
+        """
+        print(f"{YELLOW}[COLLECT]{RESET} Connecting to Global News Stream...")
         
-        # Simulated data stream (In real deployment, this would use requests/BeautifulSoup)
-        scanned_count = random.randint(1200, 5000)
-        hits = random.randint(3, 12)
-        time.sleep(2)  # Simulating network latency
+        real_hits = []
         
-        print(f"   >>> Processed {scanned_count} data points.")
-        print(f"   >>> Detected {hits} high-confidence matches.")
-        
-        return hits
+        # We construct a search query for Google News RSS
+        # Query Format: "San Antonio AND (civil unrest OR power outage...)"
+        query_keywords = " OR ".join(TARGET_KEYWORDS)
+        encoded_query = f"{self.target_city} {query_keywords}"
+        rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
 
-    def analyze_threat(self, hit_count):
-        """Applies logic to determine threat level."""
-        print(f"[\033[96mANALYZE\033[0m] processing sentiment and entity extraction...")
+        print(f"   >>> Querying Endpoint: {rss_url[:60]}...")
         
-        base_score = random.randint(40, 90)
+        # THE REAL PAYLOAD
+        feed = feedparser.parse(rss_url)
         
-        if hit_count > 8:
-            threat_level = "CRITICAL"
-            base_score += 10
-        elif hit_count > 4:
-            threat_level = "ELEVATED"
-        else:
-            threat_level = "MODERATE"
+        print(f"   >>> Stream Status: {feed.status if 'status' in feed else 'OK'}")
+        print(f"   >>> Entries Found: {len(feed.entries)}")
+
+        for entry in feed.entries:
+            # Check if any keyword is actually in the title (Case Insensitive)
+            title_clean = entry.title.lower()
             
+            for keyword in TARGET_KEYWORDS:
+                if keyword.lower() in title_clean:
+                    # WE HAVE A MATCH
+                    hit_data = {
+                        "source": entry.source.title,
+                        "title": entry.title,
+                        "link": entry.link,
+                        "published": entry.published,
+                        "matched_keyword": keyword
+                    }
+                    real_hits.append(hit_data)
+                    print(f"   {RED}[MATCH]{RESET} {entry.title[:60]}...")
+                    break # Stop checking other keywords for this specific headline
+
+        return real_hits
+
+    def analyze_threat(self, hits):
+        """
+        Calculates threat level based on REAL volume of news.
+        """
+        print(f"\n{CYAN}[ANALYZE]{RESET} Processing sentiment and volume...")
+        time.sleep(0.5)
+
+        hit_count = len(hits)
+        
+        # LOGIC: More real news = Higher Threat
+        if hit_count == 0:
+            threat_level = "LOW / STABLE"
+            risk_score = 10
+        elif hit_count < 3:
+            threat_level = "MODERATE / CHATTER"
+            risk_score = 45
+        elif hit_count < 10:
+            threat_level = "ELEVATED / ACTIVE"
+            risk_score = 75
+        else:
+            threat_level = "CRITICAL / SURGE"
+            risk_score = 95
+
         report = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "location": self.target_city,
             "threat_level": threat_level,
-            "risk_score": min(base_score, 100),
-            "summary": f"Detected anomalous activity pattern matching 'Federal Deployment' signatures in {self.target_city} metro sector."
+            "risk_score": risk_score,
+            "total_hits": hit_count,
+            "top_headlines": [h['title'] for h in hits[:3]] # Save top 3 for the report
         }
-        self.intel_ledger.append(report)
         return report
 
     def generate_sitrep(self, report):
-        """Generates the final output for the analyst."""
-        print(f"[\033[95mREPORT\033[0m] Generating SITREP...")
+        """
+        Generates the final output for the analyst.
+        """
+        print(f"\n{GREEN}[REPORT]{RESET} Generating SITREP...")
         time.sleep(1)
-        
+
         print("\n" + "="*50)
-        print(f"SENTINEL SITREP // {report['timestamp']}")
+        print(f" SENTINEL SITREP // {report['timestamp']}")
         print("="*50)
-        print(f"LOCATION:   {report['location']}")
-        print(f"STATUS:     {report['threat_level']} (Score: {report['risk_score']}/100)")
-        print(f"SUMMARY:    {report['summary']}")
+        print(f" LOCATION:    {report['location']}")
+        print(f" THREAT LVL:  {report['threat_level']}")
+        print(f" RISK SCORE:  {report['risk_score']}/100")
+        print(f" INTEL COUNT: {report['total_hits']} verified sources")
+        print("-" * 50)
+        print(" TOP HEADLINES:")
+        if not report['top_headlines']:
+            print("  >> No significant activity detected.")
+        else:
+            for headline in report['top_headlines']:
+                print(f"  >> {headline}")
         print("="*50 + "\n")
 
 if __name__ == "__main__":
     # Operational Loop
+    # You can change "San Antonio" to any city in LOCATIONS
     agent = SentinelAgent("San Antonio")
     
     # Run Cycle
@@ -75,4 +138,4 @@ if __name__ == "__main__":
     intel_report = agent.analyze_threat(detected_hits)
     agent.generate_sitrep(intel_report)
     
-    print("[\033[92mSENTINEL\033[0m] Cycle Complete. Standby for next interval.")
+    print(f"{GREEN}[SENTINEL]{RESET} Cycle Complete. Standing by.")
